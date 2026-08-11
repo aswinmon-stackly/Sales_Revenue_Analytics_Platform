@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     # CORS - comma separated string of origins
     CORS_ORIGINS: str = "http://localhost:5173"
 
+    # Dashboard
+    # NOTE: There is no "targets" table yet. This is a placeholder, admin-
+    # configurable monthly revenue target used to compute the Dashboard's
+    # "Monthly Target" gauge until a proper targets feature (per-month,
+    # per-team targets stored in the DB) is built. See README for details.
+    MONTHLY_REVENUE_TARGET: float = 650000
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

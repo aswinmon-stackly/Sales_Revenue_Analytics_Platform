@@ -1,9 +1,10 @@
-
 import {
+  Alert,
   Box,
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Grid,
   InputAdornment,
   MenuItem,
@@ -23,93 +24,11 @@ import {
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppLayout } from '../../layouts/appLayout';
-
-interface Sale {
-  id: string;
-  customer: string;
-  product: string;
-  category: string;
-  amount: number;
-  status: 'Completed' | 'Processing' | 'Pending' | 'Cancelled';
-  date: string;
-}
-
-const salesData: Sale[] = [
-  {
-    id: 'ORD-1001',
-    customer: 'Acme Corporation',
-    product: 'Enterprise Software',
-    category: 'Software',
-    amount: 42500,
-    status: 'Completed',
-    date: '11 Aug 2026',
-  },
-  {
-    id: 'ORD-1002',
-    customer: 'Tech Solutions Ltd',
-    product: 'Analytics Platform',
-    category: 'Software',
-    amount: 28900,
-    status: 'Processing',
-    date: '10 Aug 2026',
-  },
-  {
-    id: 'ORD-1003',
-    customer: 'Global Enterprises',
-    product: 'Laptop Pro',
-    category: 'Electronics',
-    amount: 35200,
-    status: 'Completed',
-    date: '09 Aug 2026',
-  },
-  {
-    id: 'ORD-1004',
-    customer: 'Prime Industries',
-    product: 'Cloud Services',
-    category: 'Services',
-    amount: 19750,
-    status: 'Pending',
-    date: '08 Aug 2026',
-  },
-  {
-    id: 'ORD-1005',
-    customer: 'Digital Works',
-    product: 'Developer Tools',
-    category: 'Software',
-    amount: 24100,
-    status: 'Completed',
-    date: '07 Aug 2026',
-  },
-  {
-    id: 'ORD-1006',
-    customer: 'Bright Systems',
-    product: 'Wireless Devices',
-    category: 'Electronics',
-    amount: 15800,
-    status: 'Cancelled',
-    date: '06 Aug 2026',
-  },
-  {
-    id: 'ORD-1007',
-    customer: 'Vertex Solutions',
-    product: 'CRM Subscription',
-    category: 'Software',
-    amount: 31200,
-    status: 'Completed',
-    date: '05 Aug 2026',
-  },
-  {
-    id: 'ORD-1008',
-    customer: 'NextGen Corp',
-    product: 'Consulting Services',
-    category: 'Services',
-    amount: 27500,
-    status: 'Processing',
-    date: '04 Aug 2026',
-  },
-];
+import { salesService } from '../../services/salesService';
+import { getErrorMessage } from '../../services/apiClient';
+import type { Sale, SaleListResponse } from '../../types/sales';
 
 const statusColors: Record<
   Sale['status'],
@@ -121,6 +40,8 @@ const statusColors: Record<
   Cancelled: 'error',
 };
 
+const ROWS_PER_PAGE = 5;
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -130,41 +51,64 @@ function formatCurrency(value: number): string {
 }
 
 export default function SalesPage() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
   const [category, setCategory] = useState('All');
   const [page, setPage] = useState(1);
 
-  const rowsPerPage = 5;
+  const [data, setData] = useState<SaleListResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredSales = salesData.filter((sale) => {
-    const matchesSearch =
-      sale.id.toLowerCase().includes(search.toLowerCase()) ||
-      sale.customer.toLowerCase().includes(search.toLowerCase()) ||
-      sale.product.toLowerCase().includes(search.toLowerCase());
+  // Debounce the free-text search so we don't hit the API on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-    const matchesStatus =
-      status === 'All' || sale.status === status;
+  useEffect(() => {
+    let cancelled = false;
 
-    const matchesCategory =
-      category === 'All' || sale.category === category;
+    async function fetchSales() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await salesService.getSales({
+          search: search || undefined,
+          status,
+          category,
+          page,
+          page_size: ROWS_PER_PAGE,
+        });
+        if (!cancelled) {
+          setData(response);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(getErrorMessage(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
 
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesCategory
-    );
-  });
+    fetchSales();
+    return () => {
+      cancelled = true;
+    };
+  }, [search, status, category, page]);
 
-  const paginatedSales = filteredSales.slice(
-    (page - 1) * rowsPerPage,
-    page * rowsPerPage
-  );
-
-  const totalRevenue = filteredSales.reduce(
-    (sum, sale) => sum + sale.amount,
-    0
-  );
+  const sales = data?.items ?? [];
+  const totalSales = data?.total ?? 0;
+  const totalRevenue = data?.total_revenue ?? 0;
+  const completedOrders = data?.completed_orders ?? 0;
+  const totalPages = data?.total_pages ?? 0;
 
   return (
     <AppLayout
@@ -190,7 +134,7 @@ export default function SalesPage() {
                   fontWeight={800}
                   sx={{ mt: 1 }}
                 >
-                  {filteredSales.length}
+                  {totalSales}
                 </Typography>
               </CardContent>
             </Card>
@@ -232,11 +176,7 @@ export default function SalesPage() {
                   fontWeight={800}
                   sx={{ mt: 1 }}
                 >
-                  {
-                    filteredSales.filter(
-                      (sale) => sale.status === 'Completed'
-                    ).length
-                  }
+                  {completedOrders}
                 </Typography>
               </CardContent>
             </Card>
@@ -288,10 +228,9 @@ export default function SalesPage() {
                 <TextField
                   size="small"
                   placeholder="Search sales..."
-                  value={search}
+                  value={searchInput}
                   onChange={(event) => {
-                    setSearch(event.target.value);
-                    setPage(1);
+                    setSearchInput(event.target.value);
                   }}
                   InputProps={{
                     startAdornment: (
@@ -357,6 +296,12 @@ export default function SalesPage() {
               </Stack>
             </Stack>
 
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -406,8 +351,18 @@ export default function SalesPage() {
                 </TableHead>
 
                 <TableBody>
-                  {paginatedSales.length > 0 ? (
-                    paginatedSales.map((sale) => (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        align="center"
+                        sx={{ py: 6 }}
+                      >
+                        <CircularProgress size={28} />
+                      </TableCell>
+                    </TableRow>
+                  ) : sales.length > 0 ? (
+                    sales.map((sale) => (
                       <TableRow
                         key={sale.id}
                         hover
@@ -490,16 +445,14 @@ export default function SalesPage() {
             </TableContainer>
 
             {/* Pagination */}
-            {filteredSales.length > 0 && (
+            {!loading && totalPages > 1 && (
               <Stack
                 direction="row"
                 justifyContent="flex-end"
                 sx={{ mt: 3 }}
               >
                 <Pagination
-                  count={Math.ceil(
-                    filteredSales.length / rowsPerPage
-                  )}
+                  count={totalPages}
                   page={page}
                   onChange={(_, value) =>
                     setPage(value)
@@ -514,4 +467,3 @@ export default function SalesPage() {
     </AppLayout>
   );
 }
-

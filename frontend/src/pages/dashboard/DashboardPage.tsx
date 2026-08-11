@@ -1,9 +1,11 @@
-
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Box,
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Grid,
   Stack,
   Typography,
@@ -15,81 +17,138 @@ import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import AttachMoneyRoundedIcon from '@mui/icons-material/AttachMoneyRounded';
 
 import { AppLayout } from '../../layouts/appLayout';
-
-const summaryData = [
-  {
-    title: 'Total Revenue',
-    value: '₹5,01,000',
-    change: '+12.5%',
-    icon: <AttachMoneyRoundedIcon />,
-    color: 'success.main',
-  },
-  {
-    title: 'Total Orders',
-    value: '850',
-    change: '+8.2%',
-    icon: <ShoppingCartRoundedIcon />,
-    color: 'primary.main',
-  },
-  {
-    title: 'Customers',
-    value: '324',
-    change: '+5.7%',
-    icon: <PeopleAltRoundedIcon />,
-    color: 'info.main',
-  },
-  {
-    title: 'Growth',
-    value: '18.4%',
-    change: '+3.2%',
-    icon: <TrendingUpRoundedIcon />,
-    color: 'warning.main',
-  },
-];
-
-const recentOrders = [
-  {
-    id: '#ORD-1001',
-    customer: 'Acme Corporation',
-    amount: '₹42,500',
-    status: 'Completed',
-  },
-  {
-    id: '#ORD-1002',
-    customer: 'Tech Solutions Ltd',
-    amount: '₹28,900',
-    status: 'Processing',
-  },
-  {
-    id: '#ORD-1003',
-    customer: 'Global Enterprises',
-    amount: '₹35,200',
-    status: 'Completed',
-  },
-  {
-    id: '#ORD-1004',
-    customer: 'Prime Industries',
-    amount: '₹19,750',
-    status: 'Pending',
-  },
-  {
-    id: '#ORD-1005',
-    customer: 'Digital Works',
-    amount: '₹24,100',
-    status: 'Completed',
-  },
-];
+import { salesService } from '../../services/salesService';
+import { getErrorMessage } from '../../services/apiClient';
+import type { DashboardSummary, Sale } from '../../types/sales';
 
 const statusColor: Record<
-  string,
-  'success' | 'warning' | 'info'
+  Sale['status'],
+  'success' | 'warning' | 'info' | 'error'
 > = {
   Completed: 'success',
   Processing: 'info',
   Pending: 'warning',
+  Cancelled: 'error',
 };
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+// Mirrors the original design's "₹5.01L" lakh-style shorthand for the
+// Monthly Target card.
+function formatLakh(value: number): string {
+  return `₹${(value / 100000).toFixed(2)}L`;
+}
+
+function formatChange(value: number): string {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value}%`;
+}
+
 export function DashboardPage() {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchSummary() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await salesService.getDashboardSummary();
+        if (!cancelled) {
+          setSummary(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(getErrorMessage(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <AppLayout
+        title="Sales Overview"
+        subtitle="Track orders, revenue, and customer activity in real time"
+      >
+        <Stack alignItems="center" justifyContent="center" sx={{ py: 10 }}>
+          <CircularProgress />
+        </Stack>
+      </AppLayout>
+    );
+  }
+
+  if (error || !summary) {
+    return (
+      <AppLayout
+        title="Sales Overview"
+        subtitle="Track orders, revenue, and customer activity in real time"
+      >
+        <Alert severity="error">
+          {error ?? 'Unable to load dashboard data.'}
+        </Alert>
+      </AppLayout>
+    );
+  }
+
+  const summaryData = [
+    {
+      title: 'Total Revenue',
+      value: formatCurrency(summary.total_revenue),
+      change: formatChange(summary.revenue_change_pct),
+      icon: <AttachMoneyRoundedIcon />,
+      color: 'success.main',
+    },
+    {
+      title: 'Total Orders',
+      value: String(summary.total_orders),
+      change: formatChange(summary.orders_change_pct),
+      icon: <ShoppingCartRoundedIcon />,
+      color: 'primary.main',
+    },
+    {
+      title: 'Customers',
+      value: String(summary.total_customers),
+      change: formatChange(summary.customers_change_pct),
+      icon: <PeopleAltRoundedIcon />,
+      color: 'info.main',
+    },
+    {
+      title: 'Growth',
+      value: `${summary.growth_pct}%`,
+      change: formatChange(summary.growth_change_pct),
+      icon: <TrendingUpRoundedIcon />,
+      color: 'warning.main',
+    },
+  ];
+
+  const maxMonthlyRevenue = Math.max(
+    1,
+    ...summary.monthly_revenue.map((point) => point.revenue)
+  );
+  const currentMonthLabel = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
     <AppLayout
       title="Sales Overview"
@@ -137,7 +196,7 @@ export function DashboardPage() {
 
                       <Typography
                         variant="caption"
-                        color="success.main"
+                        color={item.change.startsWith('-') ? 'error.main' : 'success.main'}
                         fontWeight={700}
                       >
                         {item.change} from last month
@@ -199,8 +258,8 @@ export function DashboardPage() {
                   </Box>
 
                   <Chip
-                    label="+12.5%"
-                    color="success"
+                    label={formatChange(summary.revenue_change_pct)}
+                    color={summary.revenue_change_pct < 0 ? 'error' : 'success'}
                     size="small"
                   />
                 </Stack>
@@ -215,18 +274,17 @@ export function DashboardPage() {
                     px: 1,
                   }}
                 >
-                  {[
-                    45, 60, 52, 75, 68, 82, 90, 72, 88, 95, 84, 100,
-                  ].map((height, index) => (
+                  {summary.monthly_revenue.map((point, index) => (
                     <Box
-                      key={index}
+                      key={`${point.month}-${index}`}
+                      title={formatCurrency(point.revenue)}
                       sx={{
                         flex: 1,
-                        height: `${height}%`,
-                        minHeight: 20,
+                        height: `${Math.max((point.revenue / maxMonthlyRevenue) * 100, 2)}%`,
+                        minHeight: 4,
                         borderRadius: '6px 6px 0 0',
                         bgcolor:
-                          index === 11
+                          index === summary.monthly_revenue.length - 1
                             ? 'primary.main'
                             : 'primary.light',
                         transition: 'height 0.3s ease',
@@ -240,26 +298,13 @@ export function DashboardPage() {
                   justifyContent="space-between"
                   sx={{ mt: 1 }}
                 >
-                  {[
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'May',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Oct',
-                    'Nov',
-                    'Dec',
-                  ].map((month) => (
+                  {summary.monthly_revenue.map((point, index) => (
                     <Typography
-                      key={month}
+                      key={`${point.month}-label-${index}`}
                       variant="caption"
                       color="text.secondary"
                     >
-                      {month}
+                      {point.month}
                     </Typography>
                   ))}
                 </Stack>
@@ -290,7 +335,7 @@ export function DashboardPage() {
                   color="text.secondary"
                   sx={{ mt: 0.5 }}
                 >
-                  August 2026
+                  {currentMonthLabel}
                 </Typography>
 
                 <Stack
@@ -303,8 +348,10 @@ export function DashboardPage() {
                       width: 150,
                       height: 150,
                       borderRadius: '50%',
-                      background:
-                        'conic-gradient(#1976d2 0% 78%, #e5e7eb 78% 100%)',
+                      background: `conic-gradient(#1976d2 0% ${Math.min(
+                        summary.monthly_target.achieved_pct,
+                        100
+                      )}%, #e5e7eb ${Math.min(summary.monthly_target.achieved_pct, 100)}% 100%)`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -326,7 +373,7 @@ export function DashboardPage() {
                         variant="h5"
                         fontWeight={800}
                       >
-                        78%
+                        {summary.monthly_target.achieved_pct}%
                       </Typography>
 
                       <Typography
@@ -343,7 +390,8 @@ export function DashboardPage() {
                     color="text.secondary"
                     textAlign="center"
                   >
-                    ₹5.01L of ₹6.50L target achieved
+                    {formatLakh(summary.monthly_target.achieved_amount)} of{' '}
+                    {formatLakh(summary.monthly_target.target_amount)} target achieved
                   </Typography>
                 </Stack>
               </CardContent>
@@ -386,65 +434,73 @@ export function DashboardPage() {
                 label="View All"
                 variant="outlined"
                 clickable
+                component="a"
+                href="/sales"
               />
             </Stack>
 
-            <Stack spacing={0}>
-              {recentOrders.map((order) => (
-                <Stack
-                  key={order.id}
-                  direction="row"
-                  alignItems="center"
-                  spacing={2}
-                  sx={{
-                    py: 1.75,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    '&:last-child': {
-                      borderBottom: 'none',
-                    },
-                  }}
-                >
-                  <Box
+            {summary.recent_orders.length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                No orders yet
+              </Typography>
+            ) : (
+              <Stack spacing={0}>
+                {summary.recent_orders.map((order) => (
+                  <Stack
+                    key={order.id}
+                    direction="row"
+                    alignItems="center"
+                    spacing={2}
                     sx={{
-                      flex: 1,
-                      minWidth: 0,
+                      py: 1.75,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      '&:last-child': {
+                        borderBottom: 'none',
+                      },
                     }}
                   >
+                    <Box
+                      sx={{
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        fontWeight={700}
+                      >
+                        #{order.id}
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        noWrap
+                      >
+                        {order.customer}
+                      </Typography>
+                    </Box>
+
                     <Typography
                       variant="body2"
                       fontWeight={700}
                     >
-                      {order.id}
+                      {formatCurrency(order.amount)}
                     </Typography>
 
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      noWrap
-                    >
-                      {order.customer}
-                    </Typography>
-                  </Box>
-
-                  <Typography
-                    variant="body2"
-                    fontWeight={700}
-                  >
-                    {order.amount}
-                  </Typography>
-
-                  <Chip
-                    label={order.status}
-                    size="small"
-                    color={
-                      statusColor[order.status] ??
-                      'default'
-                    }
-                  />
-                </Stack>
-              ))}
-            </Stack>
+                    <Chip
+                      label={order.status}
+                      size="small"
+                      color={
+                        statusColor[order.status] ??
+                        'default'
+                      }
+                    />
+                  </Stack>
+                ))}
+              </Stack>
+            )}
           </CardContent>
         </Card>
 
@@ -452,4 +508,3 @@ export function DashboardPage() {
     </AppLayout>
   );
 }
-

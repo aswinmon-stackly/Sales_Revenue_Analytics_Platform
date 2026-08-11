@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from app.api.routes import auth
+from app.api.routes import auth, dashboard, sales
 from app.core.config import settings
 
 app = FastAPI(title="Enterprise Sales & Revenue Analytics Platform API")
@@ -36,6 +36,8 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(auth.router)
+app.include_router(sales.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health")

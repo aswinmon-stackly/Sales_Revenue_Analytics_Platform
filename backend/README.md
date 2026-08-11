@@ -6,18 +6,55 @@ FastAPI + PostgreSQL + SQLAlchemy + JWT authentication.
 
 ```
 app/
-├── api/routes/     # HTTP endpoints (auth.py)
+├── api/routes/     # HTTP endpoints (auth.py, sales.py, dashboard.py)
 ├── core/           # config, security (hashing/JWT), RBAC deps
-├── models/         # SQLAlchemy ORM models
+├── models/         # SQLAlchemy ORM models (user.py, sale.py)
 ├── schemas/        # Pydantic request/response models
-├── services/       # business logic (auth_service.py)
-├── repositories/   # DB query layer (user_repository.py)
+├── services/       # business logic (auth_service.py, sale_service.py, dashboard_service.py)
+├── repositories/   # DB query layer (user_repository.py, sale_repository.py)
 ├── database/       # engine/session setup
 └── main.py         # app entrypoint, CORS, error handlers
-seed.py             # creates tables + seeds 3 test users
+seed.py             # creates users table + seeds 3 test users
+seed_sales.py        # creates sales table + seeds ~12 months of sales data
 requirements.txt
 .env.example
 ```
+
+## Sales & Dashboard APIs
+
+All endpoints below require a valid JWT (`Authorization: Bearer <token>`),
+issued by `/api/auth/login`, and are read-only.
+
+- `GET /api/sales` - paginated, filterable sales list. Query params:
+  `search`, `status` (`All` or a status value), `category` (`All` or a
+  category), `page`, `page_size`. Returns `items` plus `total`,
+  `total_pages`, and aggregate `total_revenue` / `completed_orders` for the
+  *current filter*, so the Sales page needs a single request per view.
+- `GET /api/dashboard/summary` - one aggregate payload for every Dashboard
+  widget: revenue/orders/customers/growth cards (each with a month-over-
+  month `_change_pct`), a 12-month `monthly_revenue` series, a
+  `monthly_target` gauge, and the 5 most recent `recent_orders`.
+
+Both read from the same `sales` table (see `app/models/sale.py`), so there
+is one data path to maintain, not one per page.
+
+### Seeding sales data
+
+```bash
+python seed_sales.py
+```
+
+Creates the `sales` table (if missing) and seeds ~12 months of randomized
+transactions. Safe to re-run - it no-ops if the table already has rows.
+
+### Note on the Monthly Target figure
+
+There is no `targets` table yet. `monthly_target.target_amount` currently
+comes from the `MONTHLY_REVENUE_TARGET` setting in `.env` (a single
+global number for all months). If per-month or per-team targets are
+needed, that requires a small `sales_targets` table and a matching update
+to `dashboard_service.py` - flagged as a follow-up, not built here since
+it wasn't part of the current mock data or requirements.
 
 ## Setup
 

@@ -87,6 +87,8 @@ python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 python seed.py
+py seed_sales.py     
+pip install pydantic[email] 
 uvicorn app.main:app --reload
 ```
 

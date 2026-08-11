@@ -2,7 +2,7 @@
 import { LoginPage } from "../pages/auth/LoginPage"; 
 import {DashboardPage} from "../pages/dashboard/DashboardPage"; 
 import  ReportPage  from "../pages/Report/report";
-import SalesPage from "../pages/sales/sales";
+import SalesPage from "../pages/Sales/sales";
 import CustomerPage from "../pages/Customer/customer";
 import SettingsPage from "../components/settings/SettingsPage";
 
