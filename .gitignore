@@ -13,3 +13,6 @@ build/
 
 # Vite
 .vite/
+
+# Logs
+*.log
