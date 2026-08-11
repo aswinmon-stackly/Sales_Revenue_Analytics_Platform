@@ -2,7 +2,6 @@
 .env
 .env.*
 !.env.example
-!**/.env.example
 
 # Dependencies
 node_modules/
@@ -10,8 +9,6 @@ node_modules/
 # Build
 dist/
 build/
-
-# Vite
 .vite/
 
 # Logs

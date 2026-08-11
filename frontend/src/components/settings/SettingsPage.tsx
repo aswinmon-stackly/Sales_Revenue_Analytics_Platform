@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -23,6 +22,7 @@ import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 
 import { AppLayout } from '../../layouts/appLayout';
+import { useAuth } from '../../hooks/useAuth';
 
 type SectionId =
   | 'profile'
@@ -44,9 +44,9 @@ interface Settings {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  displayName: 'Muzafar',
-  email: 'muzafar@salesdashboard.io',
-  role: 'Sales Team',
+  displayName: '',
+  email: '',
+  role: '',
   defaultPageSize: 10,
   defaultSortField: 'Order Date',
   defaultSortOrder: 'Descending',
@@ -163,6 +163,8 @@ function SectionHeading({
 }
 
 export default function SettingsPage() {
+  const { user, token } = useAuth();
+
   const [settings, setSettings] =
     useState<Settings>(DEFAULT_SETTINGS);
 
@@ -177,6 +179,35 @@ export default function SettingsPage() {
     message: '',
     severity: 'success' as 'success' | 'info',
   });
+
+  /*
+   * Sync logged-in user data from AuthContext
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    setSettings((previous) => ({
+      ...previous,
+      displayName: user.name,
+      email: user.email,
+      role: user.role,
+    }));
+
+    setDraft((previous) => ({
+      ...previous,
+      displayName: user.name,
+      email: user.email,
+      role: user.role,
+    }));
+  }, [user]);
+
+  /*
+   * Access token is available here if this page
+   * needs to make an authenticated request.
+   *
+   * Do not display the token in the UI.
+   */
+  console.log('Access token available:', Boolean(token));
 
   const isDirty =
     JSON.stringify(draft) !==
@@ -206,8 +237,15 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
-    setSettings(DEFAULT_SETTINGS);
-    setDraft(DEFAULT_SETTINGS);
+    const resetSettings: Settings = {
+      ...DEFAULT_SETTINGS,
+      displayName: user?.name ?? '',
+      email: user?.email ?? '',
+      role: user?.role ?? '',
+    };
+
+    setSettings(resetSettings);
+    setDraft(resetSettings);
 
     setSnackbar({
       open: true,
@@ -416,12 +454,7 @@ export default function SettingsPage() {
                   <TextField
                     size="small"
                     value={draft.role}
-                    onChange={(event) =>
-                      updateDraft({
-                        role:
-                          event.target.value,
-                      })
-                    }
+                    disabled
                     sx={{ width: 240 }}
                   />
                 }
@@ -778,4 +811,3 @@ export default function SettingsPage() {
     </AppLayout>
   );
 }
-
