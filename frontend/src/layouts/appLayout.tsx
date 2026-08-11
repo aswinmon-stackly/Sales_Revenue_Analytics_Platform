@@ -3,6 +3,7 @@ import { Avatar, Box, IconButton, Stack, Typography } from '@mui/material';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded';
 import { Sidebar, sidebarTokens } from '../components/sideBar/Sidebar';
+import { useAuth } from "../hooks/useAuth";
 
 interface AppLayoutProps {
   title: string;
@@ -15,6 +16,7 @@ export function AppLayout({
   subtitle,
   children,
 }: AppLayoutProps) {
+  const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
 
   return (
@@ -122,7 +124,12 @@ export function AppLayout({
                     fontSize: '0.9rem',
                   }}
                 >
-                  MZ
+                  {user?.name
+                    ?.split(" ")
+                    .map((word) => word[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
                 </Avatar>
 
                 <Box
@@ -138,14 +145,14 @@ export function AppLayout({
                     fontWeight={600}
                     lineHeight={1.2}
                   >
-                    Muzafar
+                    {user?.name || "User"}
                   </Typography>
 
                   <Typography
                     variant="caption"
                     color="text.secondary"
                   >
-                    Sales Team
+                    {user?.role || "VIEWER"}
                   </Typography>
                 </Box>
               </Stack>

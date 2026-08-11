@@ -1,19 +1,3 @@
-// import { LoginPage } from '../pages/auth/LoginPage';
-// import Dashboardlayout from '../layouts/DashboardLayout';
-// import dashboardpge from '../pages/dashboard/DashboardPage';
-
-// export const routes = [
-//   {
-//     path: '/',
-//     element: <LoginPage />,
-//     protected: false,
-//   },
-//   {
-//     path: '/dashboard',
-//     element: <DashboardPage />,
-//     protected: true,
-//   },
-// ];
 
 import { LoginPage } from "../pages/auth/LoginPage"; 
 import {DashboardPage} from "../pages/dashboard/DashboardPage"; 
