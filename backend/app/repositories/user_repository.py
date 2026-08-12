@@ -20,3 +20,12 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    def update(self, user: User, *, name: str | None = None, email: str | None = None) -> User:
+        if name is not None:
+            user.name = name
+        if email is not None:
+            user.email = email
+        self.db.commit()
+        self.db.refresh(user)
+        return user

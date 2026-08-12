@@ -28,3 +28,11 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: UserRole = UserRole.VIEWER
+
+
+class UserUpdate(BaseModel):
+    """Partial update for the current user's own profile (name/email only -
+    password and role changes are intentionally out of scope here)."""
+
+    name: str | None = None
+    email: EmailStr | None = None

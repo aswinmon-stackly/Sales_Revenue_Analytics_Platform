@@ -110,3 +110,57 @@ class SaleRepository:
             .all()
         )
         return {int(month): float(revenue) for month, revenue in rows}
+
+    # -- Reports ----------------------------------------------------------
+
+    def status_breakdown(self) -> list[tuple[SaleStatus, int]]:
+        rows = (
+            self.db.query(Sale.status, func.count(Sale.id))
+            .group_by(Sale.status)
+            .all()
+        )
+        return [(status, int(count)) for status, count in rows]
+
+    def category_breakdown(self) -> list[tuple[str, float, int]]:
+        rows = (
+            self.db.query(
+                Sale.category,
+                func.coalesce(func.sum(Sale.amount), 0),
+                func.count(Sale.id),
+            )
+            .group_by(Sale.category)
+            .order_by(func.sum(Sale.amount).desc())
+            .all()
+        )
+        return [(category, float(total), int(count)) for category, total, count in rows]
+
+    def top_customers(self, limit: int = 5) -> list[tuple[str, int, float]]:
+        rows = (
+            self.db.query(
+                Sale.customer_name,
+                func.count(Sale.id),
+                func.coalesce(func.sum(Sale.amount), 0),
+            )
+            .group_by(Sale.customer_name)
+            .order_by(func.sum(Sale.amount).desc())
+            .limit(limit)
+            .all()
+        )
+        return [(name, int(count), float(total)) for name, count, total in rows]
+
+    # -- Shared by Customers page (orders/spend per company) --------------
+
+    def orders_and_spend_by_company(self) -> dict[str, tuple[int, float]]:
+        """Maps Sale.customer_name (a company name) -> (order_count, total_spent).
+        Used by CustomerRepository to enrich each Customer with real order
+        history, since Sale has no customer_id FK yet (see Customer model)."""
+        rows = (
+            self.db.query(
+                Sale.customer_name,
+                func.count(Sale.id),
+                func.coalesce(func.sum(Sale.amount), 0),
+            )
+            .group_by(Sale.customer_name)
+            .all()
+        )
+        return {name: (int(count), float(total)) for name, count, total in rows}

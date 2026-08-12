@@ -17,13 +17,14 @@ interface NavItem {
   icon: ReactNode;
   to?: string;
   comingSoon?: boolean;
+  minRole?: 'ADMIN' | 'ANALYST'; // omitted = visible to every role
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: <SpaceDashboardRoundedIcon fontSize="small" />, to: '/dashboard' },
   { label: 'Sales', icon: <ReceiptLongRoundedIcon fontSize="small" />, to: '/sales' },
-  { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers' },
-  { label: 'Reports', icon: <InsightsRoundedIcon fontSize="small" />, to: '/reports' },
+  { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers', minRole: 'ANALYST' },
+  { label: 'Reports', icon: <InsightsRoundedIcon fontSize="small" />, to: '/reports', minRole: 'ANALYST' },
 ];
 
 function NavRow({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
@@ -90,12 +91,19 @@ interface SidebarContentProps {
 
 function SidebarContent({ onNavigate }: SidebarContentProps) {
   const location = useLocation();
-  const { logout } = useAuth(); // Consume the centralized auth hook
+  const { logout, role } = useAuth(); // Consume the centralized auth hook
 
   const handleLogout = () => {
     if (onNavigate) onNavigate(); // Close mobile drawer first if open
     logout(); // Triggers token removal, clears user state, and forces redirect to /
   };
+
+  // Mirrors the backend RBAC policy: Customers/Reports require ADMIN or
+  // ANALYST (require_analyst() on those routes) - VIEWER would just get a
+  // 403 from the API, so we don't show the link at all.
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.minRole || role === 'ADMIN' || role === 'ANALYST'
+  );
 
   return (
     <Box
@@ -139,7 +147,7 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
         MENU
       </Typography>
       <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavRow key={item.label} item={item} active={location.pathname === item.to} onNavigate={onNavigate} />
         ))}
       </Stack>

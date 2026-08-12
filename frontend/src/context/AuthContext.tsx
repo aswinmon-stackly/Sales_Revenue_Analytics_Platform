@@ -14,6 +14,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -75,6 +76,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  // Re-fetches the current user from /api/auth/me - used after a profile
+  // edit (e.g. Settings page) so the name/email shown elsewhere (sidebar,
+  // top bar) stays in sync without a full page reload. Does not touch
+  // token handling.
+  const refreshUser = useCallback(async () => {
+    const currentUser = await authService.getCurrentUser();
+    setUser(currentUser);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -84,8 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: status === "authenticated",
       login,
       logout,
+      refreshUser,
     }),
-    [user, token, status, login, logout]
+    [user, token, status, login, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

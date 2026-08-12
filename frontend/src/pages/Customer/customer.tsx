@@ -1,10 +1,11 @@
-
 import {
+  Alert,
   Avatar,
   Box,
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Grid,
   InputAdornment,
   MenuItem,
@@ -26,102 +27,11 @@ import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import PersonAddAltRoundedIcon from '@mui/icons-material/PersonAddAltRounded';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppLayout } from '../../layouts/appLayout';
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  orders: number;
-  totalSpent: number;
-  status: 'Active' | 'Inactive';
-  joinedDate: string;
-}
-
-const customersData: Customer[] = [
-  {
-    id: 'CUS-1001',
-    name: 'Arun Kumar',
-    email: 'arun.kumar@example.com',
-    company: 'Acme Corporation',
-    orders: 48,
-    totalSpent: 42500,
-    status: 'Active',
-    joinedDate: '02 Jan 2026',
-  },
-  {
-    id: 'CUS-1002',
-    name: 'Priya Sharma',
-    email: 'priya.sharma@example.com',
-    company: 'Tech Solutions Ltd',
-    orders: 42,
-    totalSpent: 38900,
-    status: 'Active',
-    joinedDate: '15 Jan 2026',
-  },
-  {
-    id: 'CUS-1003',
-    name: 'Rahul Raj',
-    email: 'rahul.raj@example.com',
-    company: 'Global Enterprises',
-    orders: 36,
-    totalSpent: 32100,
-    status: 'Active',
-    joinedDate: '28 Jan 2026',
-  },
-  {
-    id: 'CUS-1004',
-    name: 'Sneha Devi',
-    email: 'sneha.devi@example.com',
-    company: 'Prime Industries',
-    orders: 31,
-    totalSpent: 28750,
-    status: 'Inactive',
-    joinedDate: '05 Feb 2026',
-  },
-  {
-    id: 'CUS-1005',
-    name: 'Vijay Kumar',
-    email: 'vijay.kumar@example.com',
-    company: 'Digital Works',
-    orders: 27,
-    totalSpent: 24100,
-    status: 'Active',
-    joinedDate: '18 Feb 2026',
-  },
-  {
-    id: 'CUS-1006',
-    name: 'Karthik S',
-    email: 'karthik.s@example.com',
-    company: 'Bright Systems',
-    orders: 24,
-    totalSpent: 19800,
-    status: 'Active',
-    joinedDate: '01 Mar 2026',
-  },
-  {
-    id: 'CUS-1007',
-    name: 'Divya Menon',
-    email: 'divya.menon@example.com',
-    company: 'Vertex Solutions',
-    orders: 21,
-    totalSpent: 17500,
-    status: 'Inactive',
-    joinedDate: '12 Mar 2026',
-  },
-  {
-    id: 'CUS-1008',
-    name: 'Suresh Babu',
-    email: 'suresh.babu@example.com',
-    company: 'NextGen Corp',
-    orders: 19,
-    totalSpent: 15200,
-    status: 'Active',
-    joinedDate: '25 Mar 2026',
-  },
-];
+import { customersService } from '../../services/customersService';
+import { getErrorMessage } from '../../services/apiClient';
+import type { Customer, CustomerListResponse, CustomerSummary } from '../../types/customer';
 
 const statusColors: Record<
   Customer['status'],
@@ -130,6 +40,8 @@ const statusColors: Record<
   Active: 'success',
   Inactive: 'default',
 };
+
+const ROWS_PER_PAGE = 5;
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-IN', {
@@ -152,53 +64,64 @@ function getInitials(name: string): string {
 }
 
 export default function CustomersPage() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
   const [page, setPage] = useState(1);
 
-  const rowsPerPage = 5;
+  const [data, setData] = useState<CustomerListResponse | null>(null);
+  const [summary, setSummary] = useState<CustomerSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredCustomers = customersData.filter(
-    (customer) => {
-      const searchValue = search.toLowerCase();
+  // Debounce the free-text search so we don't hit the API on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-      const matchesSearch =
-        customer.id
-          .toLowerCase()
-          .includes(searchValue) ||
-        customer.name
-          .toLowerCase()
-          .includes(searchValue) ||
-        customer.email
-          .toLowerCase()
-          .includes(searchValue) ||
-        customer.company
-          .toLowerCase()
-          .includes(searchValue);
+  useEffect(() => {
+    let cancelled = false;
 
-      const matchesStatus =
-        status === 'All' ||
-        customer.status === status;
-
-      return matchesSearch && matchesStatus;
+    async function fetchCustomers() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [list, summaryData] = await Promise.all([
+          customersService.getCustomers({
+            search: search || undefined,
+            status,
+            page,
+            page_size: ROWS_PER_PAGE,
+          }),
+          customersService.getCustomerSummary(),
+        ]);
+        if (!cancelled) {
+          setData(list);
+          setSummary(summaryData);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(getErrorMessage(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
-  );
 
-  const paginatedCustomers = filteredCustomers.slice(
-    (page - 1) * rowsPerPage,
-    page * rowsPerPage
-  );
+    fetchCustomers();
+    return () => {
+      cancelled = true;
+    };
+  }, [search, status, page]);
 
-  const totalCustomers = customersData.length;
-
-  const activeCustomers = customersData.filter(
-    (customer) => customer.status === 'Active'
-  ).length;
-
-  const totalRevenue = customersData.reduce(
-    (sum, customer) => sum + customer.totalSpent,
-    0
-  );
+  const customers = data?.items ?? [];
+  const totalPages = data?.total_pages ?? 0;
 
   return (
     <AppLayout
@@ -206,6 +129,12 @@ export default function CustomersPage() {
       subtitle="Manage and monitor your customers"
     >
       <Stack spacing={3}>
+
+        {error && (
+          <Alert severity="error">
+            {error}
+          </Alert>
+        )}
 
         {/* Customer Statistics */}
         <Grid container spacing={2.5}>
@@ -237,7 +166,7 @@ export default function CustomersPage() {
                       fontWeight={800}
                       sx={{ mt: 1 }}
                     >
-                      {totalCustomers}
+                      {summary?.total_customers ?? '—'}
                     </Typography>
                   </Box>
 
@@ -282,7 +211,7 @@ export default function CustomersPage() {
                       fontWeight={800}
                       sx={{ mt: 1 }}
                     >
-                      {activeCustomers}
+                      {summary?.active_customers ?? '—'}
                     </Typography>
                   </Box>
 
@@ -327,7 +256,7 @@ export default function CustomersPage() {
                       fontWeight={800}
                       sx={{ mt: 1 }}
                     >
-                      {formatCurrency(totalRevenue)}
+                      {summary ? formatCurrency(summary.total_revenue) : '—'}
                     </Typography>
                   </Box>
 
@@ -393,10 +322,9 @@ export default function CustomersPage() {
                 <TextField
                   size="small"
                   placeholder="Search customers..."
-                  value={search}
+                  value={searchInput}
                   onChange={(event) => {
-                    setSearch(event.target.value);
-                    setPage(1);
+                    setSearchInput(event.target.value);
                   }}
                   InputProps={{
                     startAdornment: (
@@ -473,8 +401,18 @@ export default function CustomersPage() {
                 </TableHead>
 
                 <TableBody>
-                  {paginatedCustomers.length > 0 ? (
-                    paginatedCustomers.map(
+                  {loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        align="center"
+                        sx={{ py: 6 }}
+                      >
+                        <CircularProgress size={28} />
+                      </TableCell>
+                    </TableRow>
+                  ) : customers.length > 0 ? (
+                    customers.map(
                       (customer) => (
                         <TableRow
                           key={customer.id}
@@ -539,7 +477,7 @@ export default function CustomersPage() {
                               fontWeight={700}
                             >
                               {formatCurrency(
-                                customer.totalSpent
+                                customer.total_spent
                               )}
                             </Typography>
                           </TableCell>
@@ -561,7 +499,7 @@ export default function CustomersPage() {
                               variant="body2"
                               color="text.secondary"
                             >
-                              {customer.joinedDate}
+                              {customer.joined_date}
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -587,17 +525,14 @@ export default function CustomersPage() {
             </TableContainer>
 
             {/* Pagination */}
-            {filteredCustomers.length > 0 && (
+            {!loading && totalPages > 1 && (
               <Stack
                 direction="row"
                 justifyContent="flex-end"
                 sx={{ mt: 3 }}
               >
                 <Pagination
-                  count={Math.ceil(
-                    filteredCustomers.length /
-                      rowsPerPage
-                  )}
+                  count={totalPages}
                   page={page}
                   onChange={(_, value) =>
                     setPage(value)

@@ -4,6 +4,7 @@ import {
   Avatar,
   Box,
   Button,
+  CircularProgress,
   Divider,
   List,
   ListItemButton,
@@ -23,6 +24,8 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 
 import { AppLayout } from '../../layouts/appLayout';
 import { useAuth } from '../../hooks/useAuth';
+import { settingsService, usersService } from '../../services/settingsService';
+import { getErrorMessage } from '../../services/apiClient';
 
 type SectionId =
   | 'profile'
@@ -163,7 +166,7 @@ function SectionHeading({
 }
 
 export default function SettingsPage() {
-  const { user, token } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [settings, setSettings] =
     useState<Settings>(DEFAULT_SETTINGS);
@@ -174,40 +177,62 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] =
     useState<SectionId>('profile');
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'info',
+    severity: 'success' as 'success' | 'info' | 'error',
   });
 
   /*
-   * Sync logged-in user data from AuthContext
+   * Load the signed-in user's persisted preferences from the backend and
+   * merge them with the live profile fields from AuthContext.
    */
   useEffect(() => {
-    if (!user) return;
+    let cancelled = false;
 
-    setSettings((previous) => ({
-      ...previous,
-      displayName: user.name,
-      email: user.email,
-      role: user.role,
-    }));
+    async function fetchSettings() {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const remote = await settingsService.getSettings();
+        if (cancelled) return;
 
-    setDraft((previous) => ({
-      ...previous,
-      displayName: user.name,
-      email: user.email,
-      role: user.role,
-    }));
-  }, [user]);
+        const merged: Settings = {
+          displayName: user?.name ?? '',
+          email: user?.email ?? '',
+          role: user?.role ?? '',
+          defaultPageSize: remote.default_page_size,
+          defaultSortField: remote.default_sort_field,
+          defaultSortOrder: remote.default_sort_order,
+          currency: remote.currency,
+          emailNotifications: remote.email_notifications,
+          weeklySummaryEmail: remote.weekly_summary_email,
+          lowStockAlerts: remote.low_stock_alerts,
+        };
 
-  /*
-   * Access token is available here if this page
-   * needs to make an authenticated request.
-   *
-   * Do not display the token in the UI.
-   */
-  console.log('Access token available:', Boolean(token));
+        setSettings(merged);
+        setDraft(merged);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(getErrorMessage(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchSettings();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const isDirty =
     JSON.stringify(draft) !==
@@ -222,14 +247,49 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleSave = () => {
-    setSettings(draft);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Profile fields (name/email) persist via /api/users/me; everything
+      // else persists via /api/settings. Only send what actually changed.
+      const profilePatch: { name?: string; email?: string } = {};
+      if (draft.displayName !== settings.displayName) profilePatch.name = draft.displayName;
+      if (draft.email !== settings.email) profilePatch.email = draft.email;
 
-    setSnackbar({
-      open: true,
-      message: 'Settings saved successfully.',
-      severity: 'success',
-    });
+      const preferencesPatch: Record<string, unknown> = {};
+      if (draft.defaultPageSize !== settings.defaultPageSize) preferencesPatch.default_page_size = draft.defaultPageSize;
+      if (draft.defaultSortField !== settings.defaultSortField) preferencesPatch.default_sort_field = draft.defaultSortField;
+      if (draft.defaultSortOrder !== settings.defaultSortOrder) preferencesPatch.default_sort_order = draft.defaultSortOrder;
+      if (draft.currency !== settings.currency) preferencesPatch.currency = draft.currency;
+      if (draft.emailNotifications !== settings.emailNotifications) preferencesPatch.email_notifications = draft.emailNotifications;
+      if (draft.weeklySummaryEmail !== settings.weeklySummaryEmail) preferencesPatch.weekly_summary_email = draft.weeklySummaryEmail;
+      if (draft.lowStockAlerts !== settings.lowStockAlerts) preferencesPatch.low_stock_alerts = draft.lowStockAlerts;
+
+      if (Object.keys(profilePatch).length > 0) {
+        await usersService.updateProfile(profilePatch);
+        await refreshUser();
+      }
+
+      if (Object.keys(preferencesPatch).length > 0) {
+        await settingsService.updateSettings(preferencesPatch);
+      }
+
+      setSettings(draft);
+
+      setSnackbar({
+        open: true,
+        message: 'Settings saved successfully.',
+        severity: 'success',
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: getErrorMessage(err),
+        severity: 'error',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDiscard = () => {
@@ -244,21 +304,39 @@ export default function SettingsPage() {
       role: user?.role ?? '',
     };
 
-    setSettings(resetSettings);
     setDraft(resetSettings);
 
     setSnackbar({
       open: true,
-      message: 'Settings reset successfully.',
+      message: 'Changes reset. Click "Save changes" to persist.',
       severity: 'info',
     });
   };
+
+  if (loading) {
+    return (
+      <AppLayout
+        title="Settings"
+        subtitle="Manage your profile, preferences, and notifications"
+      >
+        <Stack alignItems="center" justifyContent="center" sx={{ py: 10 }}>
+          <CircularProgress />
+        </Stack>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
       title="Settings"
       subtitle="Manage your profile, preferences, and notifications"
     >
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 2.5 }}>
+          {loadError} Showing default preferences - changes can still be saved.
+        </Alert>
+      )}
+
       <Paper
         variant="outlined"
         sx={{
@@ -692,8 +770,8 @@ export default function SettingsPage() {
                 color="text.secondary"
                 sx={{ mb: 2 }}
               >
-                Reset your dashboard settings
-                and preferences.
+                Discard unsaved changes on this
+                screen and start over.
               </Typography>
 
               <Stack
@@ -718,15 +796,16 @@ export default function SettingsPage() {
                     variant="body2"
                     fontWeight={600}
                   >
-                    Reset dashboard settings
+                    Reset unsaved changes
                   </Typography>
 
                   <Typography
                     variant="caption"
                     color="text.secondary"
                   >
-                    Restore all settings to their
-                    default values
+                    Restore fields to your last saved
+                    values (profile name/email reset
+                    to your account defaults)
                   </Typography>
                 </Box>
 
@@ -760,7 +839,7 @@ export default function SettingsPage() {
               <Button
                 variant="text"
                 onClick={handleDiscard}
-                disabled={!isDirty}
+                disabled={!isDirty || saving}
               >
                 Discard changes
               </Button>
@@ -768,12 +847,12 @@ export default function SettingsPage() {
               <Button
                 variant="contained"
                 startIcon={
-                  <SaveRoundedIcon />
+                  saving ? undefined : <SaveRoundedIcon />
                 }
                 onClick={handleSave}
-                disabled={!isDirty}
+                disabled={!isDirty || saving}
               >
-                Save changes
+                {saving ? <CircularProgress size={18} color="inherit" /> : 'Save changes'}
               </Button>
             </Stack>
           )}

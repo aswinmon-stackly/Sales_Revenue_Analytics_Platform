@@ -1,4 +1,4 @@
-
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -17,6 +17,9 @@ import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 
 import { AppLayout } from '../../layouts/appLayout';
+import { reportsService } from '../../services/reportsService';
+import { getErrorMessage } from '../../services/apiClient';
+import type { ReportSummary } from '../../types/report';
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: 'warning.main',
@@ -24,76 +27,6 @@ const STATUS_COLORS: Record<string, string> = {
   Completed: 'success.main',
   Cancelled: 'error.main',
 };
-
-const statusData = [
-  {
-    status: 'Completed',
-    count: 480,
-  },
-  {
-    status: 'Processing',
-    count: 180,
-  },
-  {
-    status: 'Pending',
-    count: 120,
-  },
-  {
-    status: 'Cancelled',
-    count: 70,
-  },
-];
-
-const categoryData = [
-  {
-    category: 'Electronics',
-    sales: 185000,
-    orders: 245,
-  },
-  {
-    category: 'Software',
-    sales: 142000,
-    orders: 180,
-  },
-  {
-    category: 'Accessories',
-    sales: 98000,
-    orders: 150,
-  },
-  {
-    category: 'Services',
-    sales: 76000,
-    orders: 95,
-  },
-];
-
-const customerData = [
-  {
-    name: 'Acme Corporation',
-    orders: 48,
-    spending: 42500,
-  },
-  {
-    name: 'Tech Solutions Ltd',
-    orders: 42,
-    spending: 38900,
-  },
-  {
-    name: 'Global Enterprises',
-    orders: 36,
-    spending: 32100,
-  },
-  {
-    name: 'Prime Industries',
-    orders: 31,
-    spending: 28750,
-  },
-  {
-    name: 'Digital Works',
-    orders: 27,
-    spending: 24100,
-  },
-];
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-IN', {
@@ -206,24 +139,86 @@ function StatusRing({
 }
 
 export default function ReportsPage() {
-  const totalOrders = statusData.reduce(
+  const [report, setReport] = useState<ReportSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchReport() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await reportsService.getReportSummary();
+        if (!cancelled) {
+          setReport(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(getErrorMessage(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchReport();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <AppLayout
+        title="Reports"
+        subtitle="Sales performance at a glance"
+      >
+        <Stack alignItems="center" justifyContent="center" sx={{ py: 10 }}>
+          <CircularProgress />
+        </Stack>
+      </AppLayout>
+    );
+  }
+
+  if (error || !report) {
+    return (
+      <AppLayout
+        title="Reports"
+        subtitle="Sales performance at a glance"
+      >
+        <Alert severity="error">
+          {error ?? 'Unable to load report data.'}
+        </Alert>
+      </AppLayout>
+    );
+  }
+
+  const totalOrders = report.status_breakdown.reduce(
     (sum, item) => sum + item.count,
     0
   );
 
-  const currentRevenue = 501000;
-  const previousRevenue = 468000;
-
-  const growthPercent =
-    ((currentRevenue - previousRevenue) /
-      previousRevenue) *
-    100;
-
-  const isGrowthPositive = growthPercent >= 0;
+  const isGrowthPositive = report.growth_pct >= 0;
 
   const maxCategoryValue = Math.max(
-    ...categoryData.map((item) => item.sales)
+    1,
+    ...report.category_breakdown.map((item) => item.sales)
   );
+
+  const now = new Date();
+  const currentMonthLabel = now.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+  const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousMonthLabel = previousMonthDate.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <AppLayout
@@ -263,26 +258,32 @@ export default function ReportsPage() {
                 Status Breakdown
               </Typography>
 
-              <Stack
-                direction="row"
-                spacing={2}
-                flexWrap="wrap"
-                useFlexGap
-              >
-                {statusData.map((item) => {
-                  const percent =
-                    (item.count / totalOrders) * 100;
+              {totalOrders === 0 ? (
+                <Typography color="text.secondary" sx={{ py: 2 }}>
+                  No orders yet
+                </Typography>
+              ) : (
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  {report.status_breakdown.map((item) => {
+                    const percent =
+                      (item.count / totalOrders) * 100;
 
-                  return (
-                    <StatusRing
-                      key={item.status}
-                      label={item.status}
-                      percent={percent}
-                      count={item.count}
-                    />
-                  );
-                })}
-              </Stack>
+                    return (
+                      <StatusRing
+                        key={item.status}
+                        label={item.status}
+                        percent={percent}
+                        count={item.count}
+                      />
+                    );
+                  })}
+                </Stack>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -325,12 +326,12 @@ export default function ReportsPage() {
                       fontWeight={800}
                       sx={{ mt: 1 }}
                     >
-                      {formatCurrency(currentRevenue)}
+                      {formatCurrency(report.current_revenue)}
                     </Typography>
                   </Box>
 
                   <Chip
-                    label="August 2026"
+                    label={currentMonthLabel}
                     size="small"
                     sx={{
                       bgcolor:
@@ -401,14 +402,14 @@ export default function ReportsPage() {
                   }
                 >
                   {isGrowthPositive ? '+' : ''}
-                  {growthPercent.toFixed(1)}%
+                  {report.growth_pct.toFixed(1)}%
                 </Typography>
 
                 <Typography
                   variant="caption"
                   color="text.secondary"
                 >
-                  vs July 2026
+                  vs {previousMonthLabel}
                 </Typography>
               </CardContent>
             </Card>
@@ -445,52 +446,58 @@ export default function ReportsPage() {
                 Which product categories drive the most sales
               </Typography>
 
-              <Stack spacing={2}>
-                {categoryData.map((item) => (
-                  <Box key={item.category}>
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      sx={{ mb: 0.5 }}
-                    >
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
+              {report.category_breakdown.length === 0 ? (
+                <Typography color="text.secondary" sx={{ py: 2 }}>
+                  No sales data yet
+                </Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {report.category_breakdown.map((item) => (
+                    <Box key={item.category}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        sx={{ mb: 0.5 }}
                       >
-                        {item.category}
-                      </Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                        >
+                          {item.category}
+                        </Typography>
+
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                        >
+                          {formatCurrency(item.sales)}
+                        </Typography>
+                      </Stack>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          (item.sales /
+                            maxCategoryValue) *
+                          100
+                        }
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          bgcolor: 'action.hover',
+                        }}
+                      />
 
                       <Typography
-                        variant="body2"
+                        variant="caption"
                         color="text.secondary"
                       >
-                        {formatCurrency(item.sales)}
+                        {formatNumber(item.orders)} orders
                       </Typography>
-                    </Stack>
-
-                    <LinearProgress
-                      variant="determinate"
-                      value={
-                        (item.sales /
-                          maxCategoryValue) *
-                        100
-                      }
-                      sx={{
-                        height: 8,
-                        borderRadius: 4,
-                        bgcolor: 'action.hover',
-                      }}
-                    />
-
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                    >
-                      {formatNumber(item.orders)} orders
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -525,70 +532,76 @@ export default function ReportsPage() {
                 Highest spending customers by total revenue
               </Typography>
 
-              <Stack
-                divider={
-                  <Box
-                    sx={{
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  />
-                }
-                spacing={0}
-              >
-                {customerData.map((customer) => (
-                  <Stack
-                    key={customer.name}
-                    direction="row"
-                    alignItems="center"
-                    spacing={1.5}
-                    sx={{ py: 1.5 }}
-                  >
-                    <Avatar
-                      sx={{
-                        bgcolor: 'primary.main',
-                        width: 40,
-                        height: 40,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {getInitials(customer.name)}
-                    </Avatar>
-
+              {report.top_customers.length === 0 ? (
+                <Typography color="text.secondary" sx={{ py: 2 }}>
+                  No customers yet
+                </Typography>
+              ) : (
+                <Stack
+                  divider={
                     <Box
                       sx={{
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        noWrap
-                      >
-                        {customer.name}
-                      </Typography>
-
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                      >
-                        {formatNumber(customer.orders)} orders
-                      </Typography>
-                    </Box>
-
-                    <Chip
-                      label={formatCurrency(
-                        customer.spending
-                      )}
-                      size="small"
-                      sx={{
-                        fontWeight: 700,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                       }}
                     />
-                  </Stack>
-                ))}
-              </Stack>
+                  }
+                  spacing={0}
+                >
+                  {report.top_customers.map((customer) => (
+                    <Stack
+                      key={customer.name}
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.5}
+                      sx={{ py: 1.5 }}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: 'primary.main',
+                          width: 40,
+                          height: 40,
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {getInitials(customer.name)}
+                      </Avatar>
+
+                      <Box
+                        sx={{
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          noWrap
+                        >
+                          {customer.name}
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          {formatNumber(customer.orders)} orders
+                        </Typography>
+                      </Box>
+
+                      <Chip
+                        label={formatCurrency(
+                          customer.spending
+                        )}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                        }}
+                      />
+                    </Stack>
+                  ))}
+                </Stack>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -597,4 +610,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
