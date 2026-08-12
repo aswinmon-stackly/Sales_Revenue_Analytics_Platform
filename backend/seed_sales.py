@@ -22,9 +22,18 @@ from app.models.user import User  # noqa: F401 - ensures Base.metadata knows abo
 random.seed(42)
 
 CUSTOMERS = [
-    "Acme Corporation", "Tech Solutions Ltd", "Global Enterprises", "Prime Industries",
-    "Digital Works", "Bright Systems", "Vertex Solutions", "NextGen Corp",
-    "Summit Traders", "Orion Retail", "Blue Ridge Logistics", "Falcon Manufacturing",
+    "Arun Kumar",
+    "Priya Sharma",
+    "Rahul Raj",
+    "Sneha Devi",
+    "Vijay Kumar",
+    "Karthik S",
+    "Divya Menon",
+    "Suresh Babu",
+    "Meera Iyer",
+    "Anand Rao",
+    "Lakshmi Narayan",
+    "Kiran Reddy",
 ]
 
 PRODUCTS = [

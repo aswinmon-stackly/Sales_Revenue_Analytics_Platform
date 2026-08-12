@@ -1,6 +1,6 @@
 # Enterprise Sales & Revenue Analytics Platform
 
-A full-stack Sales & Revenue Analytics platform with secure JWT authentication and role-based access control.
+A full-stack Sales & Revenue Analytics platform with secure JWT authentication, role-based access control, sales analytics, customer management, reports, and user settings.
 
 ## Tech Stack
 
@@ -20,10 +20,12 @@ A full-stack Sales & Revenue Analytics platform with secure JWT authentication a
 * SQLAlchemy
 * Pydantic
 * JWT Authentication
+* Password Hashing
 
 ### Database
 
 * PostgreSQL
+* Database: sales_analytics
 
 ## Project Structure
 
@@ -51,6 +53,8 @@ project/
 │   │   ├── database/
 │   │   └── main.py
 │   ├── seed.py
+│   ├── seed_sales.py
+│   ├── seed_customers.py
 │   ├── requirements.txt
 │   └── .env.example
 │
@@ -65,6 +69,14 @@ project/
 * Protected frontend routes
 * Role-Based Access Control
 * PostgreSQL database
+* Sales and revenue analytics
+* Sales search and filtering
+* Server-side pagination
+* Customer management
+* Customer search and filtering
+* Customer summary analytics
+* Reports and business analytics
+* User settings management
 * Centralized Axios API configuration
 * API error handling
 * Environment-based configuration
@@ -87,8 +99,9 @@ python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 python seed.py
-py seed_sales.py     
-pip install pydantic[email] 
+python seed_sales.py
+python seed_customers.py
+pip install pydantic[email]
 uvicorn app.main:app --reload
 ```
 
@@ -119,11 +132,17 @@ JWT_EXPIRATION=30
 
 ## API Endpoints
 
-| Method | Endpoint          | Description                |
-| ------ | ----------------- | -------------------------- |
-| POST   | `/api/auth/login` | User login                 |
-| GET    | `/api/auth/me`    | Current authenticated user |
-| GET    | `/health`         | API health check           |
+| Method | Endpoint                 | Description                   |
+| ------ | ------------------------ | ----------------------------- |
+| POST   | `/api/auth/login`        | User login                    |
+| GET    | `/api/auth/me`           | Current authenticated user    |
+| GET    | `/api/sales`             | Sales data with filters       |
+| GET    | `/api/customers`         | Customer data with pagination |
+| GET    | `/api/customers/summary` | Customer summary              |
+| GET    | `/api/reports/summary`   | Business analytics summary    |
+| GET    | `/api/settings`          | User settings                 |
+| PUT    | `/api/settings`          | Update user settings          |
+| GET    | `/health`                | API health check              |
 
 ## Test Users
 
@@ -147,6 +166,8 @@ Generate JWT
 Store Auth State
   ↓
 Protected Routes
+  ↓
+Role-Based Authorization
   ↓
 Dashboard
 ```
