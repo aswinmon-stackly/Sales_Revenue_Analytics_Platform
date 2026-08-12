@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from app.api.routes import auth, customers, dashboard, reports, sales, settings, users
+from app.api.routes import auth, customers, dashboard, reports, sales, settings, users , categories,products
 from app.core.config import settings as app_settings
 from app.database.base import Base
 from app.database.session import engine
@@ -12,7 +12,7 @@ from app.database.session import engine
 # create_all runs below - each seed script only imports the models it
 # directly needs, so this is what guarantees every table exists even if
 # only one seed script has been run (or none at all).
-from app.models import sale, user, customer, user_settings  # noqa: F401
+from app.models import sale, user, customer, user_settings, category, product  # noqa: F401
 
 app = FastAPI(title="Enterprise Sales & Revenue Analytics Platform API")
 
@@ -62,6 +62,8 @@ app.include_router(dashboard.router)
 app.include_router(customers.router)
 app.include_router(reports.router)
 app.include_router(settings.router)
+app.include_router(categories.router)
+app.include_router(products.router)
 
 
 @app.get("/health")

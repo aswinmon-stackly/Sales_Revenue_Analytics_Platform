@@ -1,3 +1,4 @@
+
 import { useState, type ReactNode } from 'react';
 import { Avatar, Box, IconButton, Stack, Typography } from '@mui/material';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
@@ -10,6 +11,8 @@ interface AppLayoutProps {
   subtitle?: string;
   children: ReactNode;
 }
+
+const serifFont = "";
 
 export function AppLayout({
   title,
@@ -76,18 +79,31 @@ export function AppLayout({
 
               <Box sx={{ minWidth: 0 }}>
                 <Typography
-                  variant="h5"
                   component="h1"
                   noWrap
+                  sx={{
+                    fontFamily: serifFont,
+                    fontSize: { xs: '1.2rem', md: '1.45rem' },
+                    fontWeight: 700,
+                    letterSpacing: '-0.005em',
+                    lineHeight: 1.25,
+                    color: 'text.primary',
+                  }}
                 >
                   {title}
                 </Typography>
 
                 {subtitle && (
                   <Typography
-                    variant="body2"
-                    color="text.secondary"
                     noWrap
+                    sx={{
+                      fontFamily: serifFont,
+                      fontSize: '0.85rem',
+                      fontStyle: 'italic',
+                      fontWeight: 400,
+                      color: 'text.secondary',
+                      mt: 0.25,
+                    }}
                   >
                     {subtitle}
                   </Typography>
@@ -121,7 +137,9 @@ export function AppLayout({
                     width: 36,
                     height: 36,
                     bgcolor: sidebarTokens.background,
-                    fontSize: '0.9rem',
+                    fontFamily: serifFont,
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
                   }}
                 >
                   {user?.name
@@ -141,16 +159,27 @@ export function AppLayout({
                   }}
                 >
                   <Typography
-                    variant="body2"
-                    fontWeight={600}
-                    lineHeight={1.2}
+                    noWrap
+                    sx={{
+                      fontFamily: serifFont,
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      lineHeight: 1.25,
+                      color: 'text.primary',
+                    }}
                   >
                     {user?.name || "User"}
                   </Typography>
 
                   <Typography
-                    variant="caption"
-                    color="text.secondary"
+                    noWrap
+                    sx={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      color: 'text.secondary',
+                      textTransform: 'uppercase',
+                    }}
                   >
                     {user?.role || "VIEWER"}
                   </Typography>
@@ -174,4 +203,3 @@ export function AppLayout({
     </Box>
   );
 }
-

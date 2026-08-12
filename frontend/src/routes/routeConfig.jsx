@@ -5,6 +5,8 @@ import  ReportPage  from "../pages/Report/report";
 import SalesPage from "../pages/Sales/sales";
 import CustomerPage from "../pages/Customer/customer";
 import SettingsPage from "../components/settings/SettingsPage";
+import CategoriesPage from "../pages/Categories/categories";
+import ProductsPage from "../pages/Products/products";
 
 export const routes = 
 [ 
@@ -32,4 +34,12 @@ export const routes =
     element: <SettingsPage />, 
     protected: true, 
   }, 
+    { path: "/categories", 
+    element: <CategoriesPage />, 
+    protected: true, 
+  }, 
+  { path: "/products", 
+    element: <ProductsPage />, 
+    protected: true, 
+  },
 ];

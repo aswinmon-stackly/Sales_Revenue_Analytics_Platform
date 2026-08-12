@@ -7,6 +7,8 @@ import GroupRoundedIcon from '@mui/icons-material/GroupRounded';
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
+import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { sidebarTokens } from '../../Style/theme';
@@ -25,6 +27,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Sales', icon: <ReceiptLongRoundedIcon fontSize="small" />, to: '/sales' },
   { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers', minRole: 'ANALYST' },
   { label: 'Reports', icon: <InsightsRoundedIcon fontSize="small" />, to: '/reports', minRole: 'ANALYST' },
+  { label: 'Categories', icon: <CategoryRoundedIcon fontSize="small" />, to: '/categories', minRole: 'ANALYST' },
+  { label: 'Products', icon: <Inventory2RoundedIcon fontSize="small" />, to: '/products', minRole: 'ANALYST' },
 ];
 
 function NavRow({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
@@ -46,9 +50,9 @@ function NavRow({ item, active, onNavigate }: { item: NavItem; active: boolean; 
         '&:hover': item.comingSoon
           ? undefined
           : {
-              bgcolor: active ? sidebarTokens.activeBg : sidebarTokens.hoverBg,
-              color: active ? sidebarTokens.activeText : sidebarTokens.textPrimary,
-            },
+            bgcolor: active ? sidebarTokens.activeBg : sidebarTokens.hoverBg,
+            color: active ? sidebarTokens.activeText : sidebarTokens.textPrimary,
+          },
       }}
     >
       <Box sx={{ display: 'flex', color: 'inherit' }}>{item.icon}</Box>
