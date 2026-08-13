@@ -25,10 +25,11 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: <SpaceDashboardRoundedIcon fontSize="small" />, to: '/dashboard' },
   { label: 'Sales', icon: <ReceiptLongRoundedIcon fontSize="small" />, to: '/sales' },
-  { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers', minRole: 'ANALYST' },
-  { label: 'Reports', icon: <InsightsRoundedIcon fontSize="small" />, to: '/reports', minRole: 'ANALYST' },
   { label: 'Categories', icon: <CategoryRoundedIcon fontSize="small" />, to: '/categories', minRole: 'ANALYST' },
   { label: 'Products', icon: <Inventory2RoundedIcon fontSize="small" />, to: '/products', minRole: 'ANALYST' },
+  { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers', minRole: 'ANALYST' },
+  { label: 'Reports', icon: <InsightsRoundedIcon fontSize="small" />, to: '/reports', minRole: 'ANALYST' },
+ 
 ];
 
 function NavRow({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
