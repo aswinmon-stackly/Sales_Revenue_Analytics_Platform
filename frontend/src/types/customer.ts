@@ -1,33 +1,55 @@
-export type CustomerStatus = "Active" | "Inactive";
+export type CustomerStatus = "ACTIVE" | "INACTIVE";
+export type CustomerSegment = "Enterprise" | "Premium" | "Standard" | "New" | "At Risk";
 
 export interface Customer {
-  id: string;
+  id: number;
+  customer_code: string;
   name: string;
   email: string;
+  phone: string;
   company: string;
-  orders: number;
-  total_spent: number;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  region: string | null;
+  segment: CustomerSegment;
   status: CustomerStatus;
-  joined_date: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CustomerListParams {
   search?: string;
+  segment?: string;
+  region?: string;
   status?: string;
+  country?: string;
   page?: number;
-  page_size?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 export interface CustomerListResponse {
-  items: Customer[];
-  total: number;
+  data: Customer[];
   page: number;
-  page_size: number;
-  total_pages: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
-export interface CustomerSummary {
-  total_customers: number;
-  active_customers: number;
-  total_revenue: number;
+export interface CustomerInput {
+  customer_code: string;
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  region?: string | null;
+  segment: CustomerSegment;
+  status?: CustomerStatus;
 }

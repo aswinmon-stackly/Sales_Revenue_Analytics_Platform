@@ -7,8 +7,8 @@ import GroupRoundedIcon from '@mui/icons-material/GroupRounded';
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
-import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { sidebarTokens } from '../../Style/theme';
@@ -25,11 +25,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: <SpaceDashboardRoundedIcon fontSize="small" />, to: '/dashboard' },
   { label: 'Sales', icon: <ReceiptLongRoundedIcon fontSize="small" />, to: '/sales' },
-  { label: 'Categories', icon: <CategoryRoundedIcon fontSize="small" />, to: '/categories', minRole: 'ANALYST' },
-  { label: 'Products', icon: <Inventory2RoundedIcon fontSize="small" />, to: '/products', minRole: 'ANALYST' },
-  { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers', minRole: 'ANALYST' },
+  { label: 'Products', icon: <Inventory2RoundedIcon fontSize="small" />, to: '/products' },
+  { label: 'Categories', icon: <CategoryRoundedIcon fontSize="small" />, to: '/categories' },
+  { label: 'Customers', icon: <GroupRoundedIcon fontSize="small" />, to: '/customers' },
   { label: 'Reports', icon: <InsightsRoundedIcon fontSize="small" />, to: '/reports', minRole: 'ANALYST' },
- 
 ];
 
 function NavRow({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
@@ -51,9 +50,9 @@ function NavRow({ item, active, onNavigate }: { item: NavItem; active: boolean; 
         '&:hover': item.comingSoon
           ? undefined
           : {
-            bgcolor: active ? sidebarTokens.activeBg : sidebarTokens.hoverBg,
-            color: active ? sidebarTokens.activeText : sidebarTokens.textPrimary,
-          },
+              bgcolor: active ? sidebarTokens.activeBg : sidebarTokens.hoverBg,
+              color: active ? sidebarTokens.activeText : sidebarTokens.textPrimary,
+            },
       }}
     >
       <Box sx={{ display: 'flex', color: 'inherit' }}>{item.icon}</Box>
@@ -103,9 +102,10 @@ function SidebarContent({ onNavigate }: SidebarContentProps) {
     logout(); // Triggers token removal, clears user state, and forces redirect to /
   };
 
-  // Mirrors the backend RBAC policy: Customers/Reports require ADMIN or
-  // ANALYST (require_analyst() on those routes) - VIEWER would just get a
-  // 403 from the API, so we don't show the link at all.
+  // Mirrors the backend RBAC policy: Reports requires ADMIN or ANALYST
+  // (require_analyst() on that route) - VIEWER would just get a 403, so
+  // we don't show the link at all. Customers has no minRole as of Task 3
+  // (VIEWER can view/search/filter customers per that spec).
   const visibleNavItems = NAV_ITEMS.filter(
     (item) => !item.minRole || role === 'ADMIN' || role === 'ANALYST'
   );

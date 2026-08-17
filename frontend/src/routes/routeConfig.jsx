@@ -4,13 +4,14 @@ import {DashboardPage} from "../pages/dashboard/DashboardPage";
 import  ReportPage  from "../pages/Report/report";
 import SalesPage from "../pages/Sales/sales";
 import CustomerPage from "../pages/Customer/customer";
+import CustomerDetailsPage from "../pages/Customer/CustomerDetails";
 import SettingsPage from "../components/settings/SettingsPage";
 import CategoriesPage from "../pages/Categories/categories";
 import ProductsPage from "../pages/Products/products";
 
 export const routes = 
 [ 
-  { path: "/login", 
+  { path: "/", 
     element: <LoginPage />, 
     protected: false, 
   }, 
@@ -28,6 +29,10 @@ export const routes =
       }, 
   { path: "/customers", 
     element: <CustomerPage />, 
+    protected: true, 
+  }, 
+    { path: "/customers/:id", 
+    element: <CustomerDetailsPage />, 
     protected: true, 
   }, 
   { path: "/settings", 
